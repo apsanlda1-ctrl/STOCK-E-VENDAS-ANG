@@ -51,7 +51,7 @@
     </main>
 
     <!-- Scripts da Aplicação -->
-    <script src="db.js"></script>
-    <script src="app.js"></script>
+    <script src="./db.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>
