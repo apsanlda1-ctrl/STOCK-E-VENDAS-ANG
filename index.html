@@ -63,6 +63,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             margin-bottom: 20px;
+            position: relative;
         }
         .form-group {
             margin-bottom: 15px;
@@ -106,7 +107,27 @@
         .pdv-left { flex: 2; display: flex; flex-direction: column; gap: 20px; }
         .pdv-right { flex: 1; background: white; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .cart-items { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 15px; border-radius: 4px; }
-        .total-box { font-size: 1.5rem; font-weight: bold; color: var(--accent-color); text-align: right; margin-bottom: 15px; }
+        
+        /* Resultados da Pesquisa Flutuantes */
+        #lista-resultados {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            width: calc(100% - 40px);
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 10;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .resultado-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f2f6;
+            display: flex;
+            justify-content: space-between;
+        }
+        .resultado-item:hover { background-color: #f8f9fa; }
     </style>
 </head>
 <body>
@@ -125,11 +146,10 @@
             <div class="pdv-container">
                 <div class="pdv-left">
                     <div class="card">
-                        <div class="form-group">
-                            <label>Selecionar ou Buscar Produto</label>
-                            <select id="produto-venda" onchange="adicionarAoCarrinho()">
-                                <option value="">-- Escolha um produto --</option>
-                            </select>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Pesquisar Produto (Nome)</label>
+                            <input type="text" id="input-pesquisa" oninput="filtrarProdutos(this.value)" placeholder="Digite para procurar o produto...">
+                            <div id="lista-resultados" style="display: none;"></div>
                         </div>
                     </div>
                     <div class="card" style="flex: 1; display: flex; flex-direction: column;">
@@ -139,9 +159,10 @@
                                 <thead>
                                     <tr>
                                         <th>Produto</th>
-                                        <th>Qtd</th>
+                                        <th style="text-align: center;">Qtd</th>
                                         <th>Preço Unit.</th>
                                         <th>Subtotal</th>
+                                        <th style="text-align: right;">Ação</th>
                                     </tr>
                                 </thead>
                                 <tbody id="lista-carrinho">
@@ -155,8 +176,28 @@
                     <div>
                         <h3>Resumo da Venda</h3>
                         <hr>
-                        <p>Cliente: <strong>Cliente Balcão</strong></p>
-                        <div class="total-box" id="display-total">Total: Kz 0,00</div>
+                        <p style="margin: 8px 0;">Cliente: <strong>Cliente Balcão</strong></p>
+                        <div style="font-size: 0.9rem; color: #555; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span>Subtotal:</span>
+                                <span id="display-subtotal">Kz 0,00</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>IVA (14%):</span>
+                                <span id="display-iva">Kz 0,00</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label style="font-size: 0.8rem;">Valor Recebido (Kz)</label>
+                            <input type="number" id="valor-recebido" oninput="calcularTroco()" placeholder="0.00">
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 15px;">
+                            <span>Troco:</span>
+                            <span id="display-troco" style="font-weight: bold; color: #2980b9;">Kz 0,00</span>
+                        </div>
+
+                        <div style="font-size: 1.3rem; font-weight: bold; color: var(--accent-color); text-align: right; border-top: 1px solid #eee; padding-top: 10px;" id="display-total">Total: Kz 0,00</div>
                     </div>
                     <button class="btn" style="width: 100%; padding: 15px; font-size: 1.1rem;" onclick="finalizarVenda()">Finalizar Venda (F3)</button>
                 </div>
@@ -211,7 +252,6 @@
     </main>
 
     <script>
-        // Banco de dados simulado em memória (Pode ser integrado ao Firebase Firestore)
         let produtos = [
             { id: 1, nome: "Água Mineral 500ml", custo: 100, venda: 200, qtd: 50 },
             { id: 2, nome: "Refrigerante 350ml", custo: 250, venda: 450, qtd: 30 }
@@ -253,17 +293,10 @@
         }
 
         function atualizarTabelas() {
-            // Atualizar Select do PDV
-            const select = document.getElementById('produto-venda');
-            select.innerHTML = '<option value="">-- Escolha um produto --</option>';
-            
-            // Atualizar Tabela de Estoque
             const tabelaEstoque = document.getElementById('tabela-estoque');
             tabelaEstoque.innerHTML = '';
 
             produtos.forEach(p => {
-                select.innerHTML += `<option value="${p.id}">${p.nome} - Kz ${p.venda.toFixed(2)} (Estoque: ${p.qtd})</option>`;
-                
                 tabelaEstoque.innerHTML += `
                     <tr>
                         <td>${p.nome}</td>
@@ -275,13 +308,35 @@
             });
         }
 
-        function adicionarAoCarrinho() {
-            const id = parseInt(document.getElementById('produto-venda').value);
-            if(!id) return;
+        function filtrarProdutos(termo) {
+            const listaResultados = document.getElementById('lista-resultados');
+            if(!termo.trim()) {
+                listaResultados.style.display = 'none';
+                return;
+            }
 
+            const filtrados = produtos.filter(p => p.nome.toLowerCase().includes(termo.toLowerCase()));
+            if(filtrados.length === 0) {
+                listaResultados.style.display = 'none';
+                return;
+            }
+
+            listaResultados.innerHTML = '';
+            filtrados.forEach(p => {
+                listaResultados.innerHTML += `
+                    <div class="resultado-item" onclick="adicionarAoCarrinho(${p.id})">
+                        <span>${p.nome} (Stock: ${p.qtd})</span>
+                        <strong>Kz ${p.venda.toFixed(2)}</strong>
+                    </div>
+                `;
+            });
+            listaResultados.style.display = 'block';
+        }
+
+        function adicionarAoCarrinho(id) {
             const produto = produtos.find(p => p.id === id);
-            if(produto.qtd <= 0) {
-                alert('Produto sem estoque!');
+            if(!produto || produto.qtd <= 0) {
+                alert('Produto sem stock disponível!');
                 return;
             }
 
@@ -290,35 +345,87 @@
                 if(itemCarrinho.qtd < produto.qtd) {
                     itemCarrinho.qtd++;
                 } else {
-                    alert('Quantidade máxima em estoque atingida.');
+                    alert('Quantidade máxima em stock atingida.');
                 }
             } else {
                 carrinho.push({ id: produto.id, nome: produto.nome, preco: produto.venda, qtd: 1 });
             }
 
             renderizarCarrinho();
-            document.getElementById('produto-venda').value = "";
+            document.getElementById('input-pesquisa').value = '';
+            document.getElementById('lista-resultados').style.display = 'none';
+        }
+
+        function alterarQtd(id, delta) {
+            let item = carrinho.find(i => i.id === id);
+            let produto = produtos.find(p => p.id === id);
+            if(!item) return;
+
+            let novaQtd = item.qtd + delta;
+            if(novaQtd <= 0) {
+                removerItem(id);
+                return;
+            }
+            if(novaQtd > produto.qtd) {
+                alert('Stock insuficiente.');
+                return;
+            }
+
+            item.qtd = novaQtd;
+            renderizarCarrinho();
+        }
+
+        function removerItem(id) {
+            carrinho = carrinho.filter(i => i.id !== id);
+            renderizarCarrinho();
         }
 
         function renderizarCarrinho() {
             const tbody = document.getElementById('lista-carrinho');
             tbody.innerHTML = '';
-            let total = 0;
+            let subtotal = 0;
 
             carrinho.forEach(item => {
-                let subtotal = item.preco * item.qtd;
-                total += subtotal;
+                let totalItem = item.preco * item.qtd;
+                subtotal += totalItem;
                 tbody.innerHTML += `
                     <tr>
                         <td>${item.nome}</td>
-                        <td>${item.qtd}</td>
+                        <td style="text-align: center;">
+                            <button onclick="alterarQtd(${item.id}, -1)" style="padding: 2px 6px; cursor: pointer;">-</button>
+                            <span style="margin: 0 6px; font-weight: bold;">${item.qtd}</span>
+                            <button onclick="alterarQtd(${item.id}, 1)" style="padding: 2px 6px; cursor: pointer;">+</button>
+                        </td>
                         <td>Kz ${item.preco.toFixed(2)}</td>
-                        <td>Kz ${subtotal.toFixed(2)}</td>
+                        <td>Kz ${totalItem.toFixed(2)}</td>
+                        <td style="text-align: right;">
+                            <button onclick="removerItem(${item.id})" style="color: red; background: none; border: none; cursor: pointer; font-weight: bold;">X</button>
+                        </td>
                     </tr>
                 `;
             });
 
-            document.getElementById('display-total').innerText = `Total: Kz ${total.toFixed(2)}`;
+            let iva = subtotal * 0.14;
+            let totalGeral = subtotal + iva;
+
+            document.getElementById('display-subtotal').innerText = `Kz ${subtotal.toFixed(2)}`;
+            document.getElementById('display-iva').innerText = `Kz ${iva.toFixed(2)}`;
+            document.getElementById('display-total').innerText = `Total: Kz ${totalGeral.toFixed(2)}`;
+            calcularTroco();
+        }
+
+        function calcularTroco() {
+            const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.qtd), 0);
+            const totalGeral = subtotal * 1.14;
+            const recebido = parseFloat(document.getElementById('valor-recebido').value) || 0;
+            const troco = recebido - totalGeral;
+
+            const displayTroco = document.getElementById('display-troco');
+            if(recebido > 0 && troco >= 0) {
+                displayTroco.innerText = `Kz ${troco.toFixed(2)}`;
+            } else {
+                displayTroco.innerText = `Kz 0,00`;
+            }
         }
 
         function finalizarVenda() {
@@ -327,19 +434,18 @@
                 return;
             }
 
-            // Atualizar estoque
             carrinho.forEach(item => {
                 let prod = produtos.find(p => p.id === item.id);
                 if(prod) prod.qtd -= item.qtd;
             });
 
-            alert('Venda finalizada com sucesso! Estoque atualizado.');
+            alert('Venda finalizada com sucesso! Stock atualizado.');
             carrinho = [];
+            document.getElementById('valor-recebido').value = '';
             renderizarCarrinho();
             atualizarTabelas();
         }
 
-        // Inicializar dados na tabela ao carregar
         atualizarTabelas();
     </script>
 </body>
