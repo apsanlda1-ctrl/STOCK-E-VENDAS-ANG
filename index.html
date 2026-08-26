@@ -152,15 +152,22 @@
             <h1>Frente de Caixa</h1>
             <div class="pdv-container">
                 <div class="pdv-left">
-                    <div class="card">
-                        <div class="form-group" style="margin-bottom: 0;">
+                    <div class="card" style="display: flex; gap: 15px; margin-bottom: 0;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label>Cód. de Barras / SKU</label>
+                            <input type="text" id="input-barras" onkeydown="verificarCodigoBarras(event)" placeholder="Bipagem ou código...">
+                        </div>
+                        <div class="form-group" style="flex: 2; margin-bottom: 0; position: relative;">
                             <label>Pesquisar Produto (Nome)</label>
-                            <input type="text" id="input-pesquisa" oninput="filtrarProdutos(this.value)" placeholder="Digite para procurar o produto...">
+                            <input type="text" id="input-pesquisa" oninput="filtrarProdutos(this.value)" placeholder="Digite para procurar...">
                             <div id="lista-resultados" style="display: none;"></div>
                         </div>
                     </div>
-                    <div class="card" style="flex: 1; display: flex; flex-direction: column;">
-                        <h3>Itens do Pedido</h3>
+                    <div class="card" style="flex: 1; display: flex; flex-direction: column; margin-bottom: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="margin: 0;">Itens do Pedido</h3>
+                            <button onclick="limparCarrinho()" style="background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 0.85rem; font-weight: bold;">Limpar Carrinho</button>
+                        </div>
                         <div class="cart-items">
                             <table>
                                 <thead>
@@ -183,11 +190,18 @@
                     <div>
                         <h3>Resumo da Venda</h3>
                         <hr>
-                        <p style="margin: 8px 0;">Cliente: <strong>Cliente Balcão</strong></p>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0;">
+                            <span>Cliente: <strong id="display-cliente">Cliente Balcão</strong></span>
+                            <button onclick="mudarCliente()" style="background: none; border: none; color: #2980b9; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Alterar</button>
+                        </div>
                         <div style="font-size: 0.9rem; color: #555; margin-bottom: 10px;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                                 <span>Subtotal:</span>
                                 <span id="display-subtotal">Kz 0,00</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span>Desconto:</span>
+                                <span id="display-desconto" style="color: var(--danger-color);">Kz 0,00</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                 <span>IVA (14%):</span>
@@ -196,12 +210,25 @@
                         </div>
 
                         <div class="form-group" style="margin-bottom: 10px;">
+                            <label style="font-size: 0.8rem;">Forma de Pagamento</label>
+                            <select id="forma-pagamento" onchange="alternarPagamento()">
+                                <option value="dinheiro">Dinheiro (Cash)</option>
+                                <option value="multicaixa">Multicaixa / Cartão</option>
+                                <option value="transferencia">Transferência Bancária</option>
+                            </select>
+                        </div>
+
+                        <div id="bloco-dinheiro" class="form-group" style="margin-bottom: 10px;">
                             <label style="font-size: 0.8rem;">Valor Recebido (Kz)</label>
                             <input type="number" id="valor-recebido" oninput="calcularTroco()" placeholder="0.00">
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 15px;">
+                        <div id="bloco-troco" style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 15px;">
                             <span>Troco:</span>
                             <span id="display-troco" style="font-weight: bold; color: #2980b9;">Kz 0,00</span>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <button onclick="aplicarDesconto()" style="background: none; border: none; color: #e67e22; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Aplicar Desconto (%)</button>
                         </div>
 
                         <div style="font-size: 1.3rem; font-weight: bold; color: var(--accent-color); text-align: right; border-top: 1px solid #eee; padding-top: 10px;" id="display-total">Total: Kz 0,00</div>
@@ -223,6 +250,10 @@
                     <div class="form-group" style="flex: 1;">
                         <label>Categoria</label>
                         <input type="text" id="cad-categoria" placeholder="Ex: Mercearia">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Cód. de Barras / SKU</label>
+                        <input type="text" id="cad-sku" placeholder="Ex: 78910020">
                     </div>
                 </div>
                 <div style="display: flex; gap: 15px;">
@@ -274,11 +305,12 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>Cód / SKU</th>
                             <th>Produto</th>
                             <th>Categoria</th>
                             <th>Custo (Kz)</th>
                             <th>Venda (Kz)</th>
-                            <th>Qtd em Estoque</th>
+                            <th>Qtd</th>
                             <th>Estado</th>
                             <th style="text-align: right;">Ações</th>
                         </tr>
@@ -293,11 +325,13 @@
 
     <script>
         let produtos = [
-            { id: 1, nome: "Água Mineral 500ml", categoria: "Bebidas", custo: 100, venda: 200, qtd: 50 },
-            { id: 2, nome: "Refrigerante 350ml", categoria: "Bebidas", custo: 250, venda: 450, qtd: 15 },
-            { id: 3, nome: "Açúcar", categoria: "Mercearia", custo: 8, venda: 12, qtd: 10 }
+            { id: 1, sku: "1001", nome: "Água Mineral 500ml", categoria: "Bebidas", custo: 100, venda: 200, qtd: 50 },
+            { id: 2, sku: "1002", nome: "Refrigerante 350ml", categoria: "Bebidas", custo: 250, venda: 450, qtd: 15 },
+            { id: 3, sku: "1003", nome: "Açúcar", categoria: "Mercearia", custo: 80, venda: 120, qtd: 10 }
         ];
         let carrinho = [];
+        let clienteAtual = "Cliente Balcão";
+        let percentualDesconto = 0;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -331,6 +365,7 @@
         function cadastrarProduto() {
             const nome = document.getElementById('cad-nome').value;
             const categoria = document.getElementById('cad-categoria').value || 'Geral';
+            const sku = document.getElementById('cad-sku').value || Math.floor(1000 + Math.random() * 9000).toString();
             const custo = parseFloat(document.getElementById('cad-custo').value) || 0;
             const venda = parseFloat(document.getElementById('cad-venda').value) || 0;
             const qtd = parseInt(document.getElementById('cad-qtd').value) || 0;
@@ -340,16 +375,15 @@
                 return;
             }
 
-            produtos.push({ id: produtos.length + 1, nome, categoria, custo, venda, qtd });
+            produtos.push({ id: produtos.length + 1, sku, nome, categoria, custo, venda, qtd });
             
-            // Feedback visual elegante sem alert
             const msgSucesso = document.getElementById('msg-sucesso');
             msgSucesso.style.display = 'inline';
             setTimeout(() => { msgSucesso.style.display = 'none'; }, 3000);
             
-            // Limpar formulário
             document.getElementById('cad-nome').value = '';
             document.getElementById('cad-categoria').value = '';
+            document.getElementById('cad-sku').value = '';
             document.getElementById('cad-custo').value = '';
             document.getElementById('cad-venda').value = '';
             document.getElementById('cad-qtd').value = '';
@@ -370,7 +404,7 @@
                 totalCustoArmazem += (p.custo * p.qtd);
                 totalVendaArmazem += (p.venda * p.qtd);
 
-                if (termoPesquisa && !p.nome.toLowerCase().includes(termoPesquisa) && !p.categoria.toLowerCase().includes(termoPesquisa)) {
+                if (termoPesquisa && !p.nome.toLowerCase().includes(termoPesquisa) && !p.categoria.toLowerCase().includes(termoPesquisa) && !p.sku.toLowerCase().includes(termoPesquisa)) {
                     return;
                 }
 
@@ -383,6 +417,7 @@
 
                 tabelaEstoque.innerHTML += `
                     <tr>
+                        <td><code>${p.sku || '-'}</code></td>
                         <td><strong>${p.nome}</strong></td>
                         <td><span style="background: #f1f2f6; padding: 3px 6px; border-radius: 4px; font-size: 0.8rem;">${p.categoria || 'Geral'}</span></td>
                         <td>Kz ${p.custo.toFixed(2)}</td>
@@ -431,6 +466,19 @@
             }
         }
 
+        function verificarCodigoBarras(event) {
+            if(event.key === 'Enter') {
+                const sku = event.target.value.trim();
+                const produto = produtos.find(p => p.sku === sku);
+                if(produto) {
+                    adicionarAoCarrinho(produto.id);
+                    event.target.value = '';
+                } else {
+                    alert('Produto não encontrado com este código.');
+                }
+            }
+        }
+
         function filtrarProdutos(termo) {
             const listaResultados = document.getElementById('lista-resultados');
             if(!termo.trim()) {
@@ -438,7 +486,7 @@
                 return;
             }
 
-            const filtrados = produtos.filter(p => p.nome.toLowerCase().includes(termo.toLowerCase()));
+            const filtrados = produtos.filter(p => p.nome.toLowerCase().includes(termo.toLowerCase()) || p.sku.includes(termo));
             if(filtrados.length === 0) {
                 listaResultados.style.display = 'none';
                 return;
@@ -503,6 +551,43 @@
             renderizarCarrinho();
         }
 
+        function limparCarrinho() {
+            if(carrinho.length > 0 && confirm('Deseja limpar todos os itens do carrinho?')) {
+                carrinho = [];
+                renderizarCarrinho();
+            }
+        }
+
+        function mudarCliente() {
+            let nome = prompt("Nome do Cliente:", clienteAtual);
+            if(nome !== null && nome.trim() !== "") {
+                clienteAtual = nome.trim();
+                document.getElementById('display-cliente').innerText = clienteAtual;
+            }
+        }
+
+        function aplicarDesconto() {
+            let desc = prompt("Insira a percentagem de desconto (%):", percentualDesconto);
+            if(desc !== null) {
+                percentualDesconto = parseFloat(desc) || 0;
+                renderizarCarrinho();
+            }
+        }
+
+        function alternarPagamento() {
+            const forma = document.getElementById('forma-pagamento').value;
+            const blocoDinheiro = document.getElementById('bloco-dinheiro');
+            const blocoTroco = document.getElementById('bloco-troco');
+
+            if(forma === 'dinheiro') {
+                blocoDinheiro.style.display = 'block';
+                blocoTroco.style.display = 'flex';
+            } else {
+                blocoDinheiro.style.display = 'none';
+                blocoTroco.style.display = 'none';
+            }
+        }
+
         function renderizarCarrinho() {
             const tbody = document.getElementById('lista-carrinho');
             tbody.innerHTML = '';
@@ -528,10 +613,13 @@
                 `;
             });
 
-            let iva = subtotal * 0.14;
-            let totalGeral = subtotal + iva;
+            let valorDesconto = subtotal * (percentualDesconto / 100);
+            let subtotalComDesconto = subtotal - valorDesconto;
+            let iva = subtotalComDesconto * 0.14;
+            let totalGeral = subtotalComDesconto + iva;
 
             document.getElementById('display-subtotal').innerText = `Kz ${subtotal.toFixed(2)}`;
+            document.getElementById('display-desconto').innerText = `Kz ${valorDesconto.toFixed(2)} (${percentualDesconto}%)`;
             document.getElementById('display-iva').innerText = `Kz ${iva.toFixed(2)}`;
             document.getElementById('display-total').innerText = `Total: Kz ${totalGeral.toFixed(2)}`;
             calcularTroco();
@@ -539,7 +627,8 @@
 
         function calcularTroco() {
             const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.qtd), 0);
-            const totalGeral = subtotal * 1.14;
+            const valorDesconto = subtotal * (percentualDesconto / 100);
+            const totalGeral = (subtotal - valorDesconto) * 1.14;
             const recebido = parseFloat(document.getElementById('valor-recebido').value) || 0;
             const troco = recebido - totalGeral;
 
@@ -557,13 +646,29 @@
                 return;
             }
 
+            const forma = document.getElementById('forma-pagamento').value;
+            if(forma === 'dinheiro') {
+                const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.qtd), 0);
+                const valorDesconto = subtotal * (percentualDesconto / 100);
+                const totalGeral = (subtotal - valorDesconto) * 1.14;
+                const recebido = parseFloat(document.getElementById('valor-recebido').value) || 0;
+                
+                if(recebido < totalGeral) {
+                    alert('O valor recebido é insuficiente para cobrir o total da venda.');
+                    return;
+                }
+            }
+
             carrinho.forEach(item => {
                 let prod = produtos.find(p => p.id === item.id);
                 if(prod) prod.qtd -= item.qtd;
             });
 
-            alert('Venda finalizada com sucesso! Stock atualizado.');
+            alert(`Venda para "${clienteAtual}" finalizada com sucesso! Stock atualizado.`);
             carrinho = [];
+            percentualDesconto = 0;
+            clienteAtual = "Cliente Balcão";
+            document.getElementById('display-cliente').innerText = clienteAtual;
             document.getElementById('valor-recebido').value = '';
             renderizarCarrinho();
             atualizarTabelas();
