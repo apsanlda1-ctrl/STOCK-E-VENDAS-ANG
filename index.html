@@ -3,74 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão AO - Stock & Faturação</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css">
+    <title>Sistema de Vendas e Estoque - PDV</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #27ae60;
+            --danger-color: #c0392b;
+            --bg-color: #f8f9fa;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        /* Layout Principal */
+        sidebar {
+            width: 250px;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        sidebar h2 { font-size: 1.2rem; margin-bottom: 30px; text-align: center; }
+        sidebar button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            transition: 0.2s;
+        }
+        sidebar button:hover, sidebar button.active { background-color: #34495e; }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .tab-content { display: none; flex: 1; flex-direction: column; }
+        .tab-content.active { display: flex; }
+
+        h1 { font-size: 1.5rem; color: var(--primary-color); margin-top: 0; }
+
+        /* Estilização de Formulários e Tabelas */
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button.btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button.btn:hover { opacity: 0.9; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f1f2f6; color: var(--primary-color); }
+
+        /* Layout PDV (Tela de Vendas) */
+        .pdv-container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+        .pdv-left { flex: 2; display: flex; flex-direction: column; gap: 20px; }
+        .pdv-right { flex: 1; background: white; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .cart-items { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 15px; border-radius: 4px; }
+        .total-box { font-size: 1.5rem; font-weight: bold; color: var(--accent-color); text-align: right; margin-bottom: 15px; }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 flex h-screen overflow-hidden">
+<body>
 
-    <!-- MENU LATERAL -->
-    <aside class="w-72 bg-slate-900 text-slate-300 flex flex-col justify-between border-r border-slate-800">
-        <div>
-            <!-- Logo / Header -->
-            <div class="p-6 border-b border-slate-800/80 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-lg">
-                    AO
+    <sidebar>
+        <h2>APPLoja Web</h2>
+        <button onclick="switchTab('pdv')" class="active">🛒 Frente de Caixa (PDV)</button>
+        <button onclick="switchTab('produtos')">📦 Cadastro de Produtos</button>
+        <button onclick="switchTab('estoque')">📊 Controle de Estoque</button>
+    </sidebar>
+
+    <main>
+        <!-- ABA PDV / VENDAS -->
+        <div id="tab-pdv" class="tab-content active">
+            <h1>Frente de Caixa</h1>
+            <div class="pdv-container">
+                <div class="pdv-left">
+                    <div class="card">
+                        <div class="form-group">
+                            <label>Selecionar ou Buscar Produto</label>
+                            <select id="produto-venda" onchange="adicionarAoCarrinho()">
+                                <option value="">-- Escolha um produto --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                        <h3>Itens do Pedido</h3>
+                        <div class="cart-items">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Produto</th>
+                                        <th>Qtd</th>
+                                        <th>Preço Unit.</th>
+                                        <th>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista-carrinho">
+                                    <!-- Itens adicionados aparecem aqui -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-base font-bold tracking-wide text-white">GESTÃO AO</h1>
-                    <p class="text-xs text-slate-400">Stock, Vendas & IVA</p>
+                <div class="pdv-right">
+                    <div>
+                        <h3>Resumo da Venda</h3>
+                        <hr>
+                        <p>Cliente: <strong>Cliente Balcão</strong></p>
+                        <div class="total-box" id="display-total">Total: Kz 0,00</div>
+                    </div>
+                    <button class="btn" style="width: 100%; padding: 15px; font-size: 1.1rem;" onclick="finalizarVenda()">Finalizar Venda (F3)</button>
                 </div>
             </div>
-            
-            <!-- Navegação -->
-            <nav class="p-4 space-y-1.5">
-                <button onclick="app.mudarSecao('dashboard')" id="nav-dashboard" class="nav-btn w-full text-left px-4 py-3 rounded-xl transition text-sm font-medium flex items-center gap-3.5 hover:bg-slate-800/60 hover:text-white">
-                    <span class="text-lg">📊</span> Dashboard Geral
-                </button>
-                <button onclick="app.mudarSecao('stock')" id="nav-stock" class="nav-btn w-full text-left px-4 py-3 rounded-xl transition text-sm font-medium flex items-center gap-3.5 hover:bg-slate-800/60 hover:text-white">
-                    <span class="text-lg">📦</span> Gestão de Stock
-                </button>
-                <button onclick="app.mudarSecao('faturacao')" id="nav-faturacao" class="nav-btn w-full text-left px-4 py-3 rounded-xl transition text-sm font-medium flex items-center gap-3.5 hover:bg-slate-800/60 hover:text-white">
-                    <span class="text-lg">🧾</span> POS & Faturação
-                </button>
-                <button onclick="app.mudarSecao('clientes')" id="nav-clientes" class="nav-btn w-full text-left px-4 py-3 rounded-xl transition text-sm font-medium flex items-center gap-3.5 hover:bg-slate-800/60 hover:text-white">
-                    <span class="text-lg">👥</span> Clientes & NIF
-                </button>
-            </nav>
         </div>
 
-        <!-- Rodapé do Menu -->
-        <div class="p-4 m-4 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-xs">
-            <span class="text-slate-400">Moeda Oficial</span>
-            <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">Kwanza (Kz)</span>
-        </div>
-    </aside>
-
-    <!-- CONTEÚDO PRINCIPAL -->
-    <main class="flex-1 flex flex-col overflow-y-auto">
-        <!-- Barra Superior -->
-        <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-xs z-10">
-            <div>
-                <h2 id="titulo-secao" class="text-xl font-bold text-slate-800">Dashboard</h2>
-                <p class="text-xs text-slate-500 mt-0.5">Painel de controlo integrado em tempo real</p>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="text-right">
-                    <div id="data-atual" class="text-xs font-semibold text-slate-700 capitalize"></div>
-                    <div class="text-[10px] text-emerald-600 font-medium">● Sistema Operacional</div>
+        <!-- ABA CADASTRO DE PRODUTOS -->
+        <div id="tab-produtos" class="tab-content">
+            <h1>Cadastro de Produtos</h1>
+            <div class="card">
+                <div class="form-group">
+                    <label>Nome do Produto</label>
+                    <input type="text" id="cad-nome" placeholder="Ex: Arroz 5kg">
                 </div>
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Preço de Custo (Kz)</label>
+                        <input type="number" id="cad-custo" placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Preço de Venda (Kz)</label>
+                        <input type="number" id="cad-venda" placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Estoque Inicial</label>
+                        <input type="number" id="cad-qtd" placeholder="0">
+                    </div>
+                </div>
+                <button class="btn" onclick="cadastrarProduto()">Salvar Produto</button>
             </div>
-        </header>
+        </div>
 
-        <!-- Área Dinâmica -->
-        <div id="conteudo-principal" class="p-8 flex-1 fade-in">
-            <!-- Conteúdo injetado via app.js -->
+        <!-- ABA CONTROLE DE ESTOQUE -->
+        <div id="tab-estoque" class="tab-content">
+            <h1>Controle de Estoque</h1>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Custo (Kz)</th>
+                            <th>Venda (Kz)</th>
+                            <th>Qtd em Estoque</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-estoque">
+                        <!-- Dados do estoque -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 
-    <!-- Scripts -->
-    <script src="./db.js"></script>
-    <script src="./app.js"></script>
+    <script>
+        // Banco de dados simulado em memória (Pode ser integrado ao Firebase Firestore)
+        let produtos = [
+            { id: 1, nome: "Água Mineral 500ml", custo: 100, venda: 200, qtd: 50 },
+            { id: 2, nome: "Refrigerante 350ml", custo: 250, venda: 450, qtd: 30 }
+        ];
+        let carrinho = [];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('sidebar button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            event.target.classList.add('active');
+
+            if(tabId === 'estoque' || tabId === 'pdv') {
+                atualizarTabelas();
+            }
+        }
+
+        function cadastrarProduto() {
+            const nome = document.getElementById('cad-nome').value;
+            const custo = parseFloat(document.getElementById('cad-custo').value) || 0;
+            const venda = parseFloat(document.getElementById('cad-venda').value) || 0;
+            const qtd = parseInt(document.getElementById('cad-qtd').value) || 0;
+
+            if(!nome) {
+                alert('Preencha o nome do produto.');
+                return;
+            }
+
+            produtos.push({ id: produtos.length + 1, nome, custo, venda, qtd });
+            alert('Produto cadastrado com sucesso!');
+            
+            document.getElementById('cad-nome').value = '';
+            document.getElementById('cad-custo').value = '';
+            document.getElementById('cad-venda').value = '';
+            document.getElementById('cad-qtd').value = '';
+            
+            atualizarTabelas();
+        }
+
+        function atualizarTabelas() {
+            // Atualizar Select do PDV
+            const select = document.getElementById('produto-venda');
+            select.innerHTML = '<option value="">-- Escolha um produto --</option>';
+            
+            // Atualizar Tabela de Estoque
+            const tabelaEstoque = document.getElementById('tabela-estoque');
+            tabelaEstoque.innerHTML = '';
+
+            produtos.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${p.nome} - Kz ${p.venda.toFixed(2)} (Estoque: ${p.qtd})</option>`;
+                
+                tabelaEstoque.innerHTML += `
+                    <tr>
+                        <td>${p.nome}</td>
+                        <td>Kz ${p.custo.toFixed(2)}</td>
+                        <td>Kz ${p.venda.toFixed(2)}</td>
+                        <td>${p.qtd}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function adicionarAoCarrinho() {
+            const id = parseInt(document.getElementById('produto-venda').value);
+            if(!id) return;
+
+            const produto = produtos.find(p => p.id === id);
+            if(produto.qtd <= 0) {
+                alert('Produto sem estoque!');
+                return;
+            }
+
+            let itemCarrinho = carrinho.find(item => item.id === id);
+            if(itemCarrinho) {
+                if(itemCarrinho.qtd < produto.qtd) {
+                    itemCarrinho.qtd++;
+                } else {
+                    alert('Quantidade máxima em estoque atingida.');
+                }
+            } else {
+                carrinho.push({ id: produto.id, nome: produto.nome, preco: produto.venda, qtd: 1 });
+            }
+
+            renderizarCarrinho();
+            document.getElementById('produto-venda').value = "";
+        }
+
+        function renderizarCarrinho() {
+            const tbody = document.getElementById('lista-carrinho');
+            tbody.innerHTML = '';
+            let total = 0;
+
+            carrinho.forEach(item => {
+                let subtotal = item.preco * item.qtd;
+                total += subtotal;
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.nome}</td>
+                        <td>${item.qtd}</td>
+                        <td>Kz ${item.preco.toFixed(2)}</td>
+                        <td>Kz ${subtotal.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('display-total').innerText = `Total: Kz ${total.toFixed(2)}`;
+        }
+
+        function finalizarVenda() {
+            if(carrinho.length === 0) {
+                alert('O carrinho está vazio.');
+                return;
+            }
+
+            // Atualizar estoque
+            carrinho.forEach(item => {
+                let prod = produtos.find(p => p.id === item.id);
+                if(prod) prod.qtd -= item.qtd;
+            });
+
+            alert('Venda finalizada com sucesso! Estoque atualizado.');
+            carrinho = [];
+            renderizarCarrinho();
+            atualizarTabelas();
+        }
+
+        // Inicializar dados na tabela ao carregar
+        atualizarTabelas();
+    </script>
 </body>
 </html>
